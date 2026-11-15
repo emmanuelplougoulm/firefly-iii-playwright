@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 export const STORAGE_STATE = '.auth/user.json';
+export const API_TOKEN = '.auth/api-token.json';
 
 export default defineConfig({
   testDir: 'tests',
