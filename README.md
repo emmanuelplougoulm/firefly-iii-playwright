@@ -16,32 +16,20 @@ The suite covers four layers:
 ## Architecture
 
 ```mermaid
-flowchart LR
-  subgraph Tests
-    API[tests/api]
-    E2E[tests/e2e]
-    VIS[tests/visual]
-    A11Y[tests/a11y]
-  end
-  subgraph Support
-    FIX[src/fixtures.ts<br/>api, assetAccount]
-    CLIENT[src/api/firefly.ts<br/>typed API client]
-    AXE[src/a11y.ts<br/>axe + debt baseline]
-  end
-  SETUP[tests/setup<br/>register or log in,<br/>issue an API token]
-  APP[(Firefly III 6.7.9<br/>+ MariaDB, Docker)]
+flowchart TB
+  SETUP["tests/setup<br/>log in, API token"]
+  API["tests/api<br/>business rules"]
+  UI["tests/e2e · visual · a11y<br/>checks in the browser"]
+  FIX["src/fixtures.ts<br/>creates and deletes test data"]
+  CLIENT["src/api/firefly.ts<br/>typed API client"]
+  APP[("Firefly III 6.7.9 + MariaDB<br/>Docker")]
 
   SETUP --> APP
   API --> FIX
-  E2E --> FIX
-  VIS --> FIX
-  A11Y --> FIX
-  A11Y --> AXE
+  UI --> FIX
   FIX --> CLIENT
-  CLIENT -- REST /api/v1 --> APP
-  E2E -- browser --> APP
-  VIS -- browser --> APP
-  A11Y -- browser --> APP
+  CLIENT -- "REST /api/v1" --> APP
+  UI -- "Chromium" --> APP
 ```
 
 - **Setup project.** On a fresh instance it registers the first user, who becomes admin, with a random password stored in `.auth/` (gitignored). Later runs log in. It saves the browser session and issues a personal access token for the API.
