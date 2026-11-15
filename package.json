@@ -1,0 +1,17 @@
+{
+  "name": "firefly-iii-playwright",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "app:up": "docker compose -f docker/compose.yml up -d --wait",
+    "app:down": "docker compose -f docker/compose.yml down -v",
+    "test": "playwright test",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
+    "@playwright/test": "1.65.1",
+    "@types/node": "26.6.6",
+    "typescript": "7.0.2"
+  }
+}
