@@ -34,7 +34,6 @@ test('a withdrawal can be entered and submitted with the keyboard only', async (
 
   await page.keyboard.type('Paid with the keyboard');
   await expect(page.locator('#description_0')).toHaveValue('Paid with the keyboard');
-  await page.keyboard.press('Escape'); // close the description suggestions, if any
   await tabTo(page, page.locator('#source_0'), 3);
   await page.keyboard.type(account.name);
   await expect(page.getByRole('menuitem', { name: new RegExp(`^${account.name} `) })).toBeVisible(); // autocomplete
