@@ -1,0 +1,25 @@
+{
+  "account-page": {
+    "button-name": 2,
+    "color-contrast": 4,
+    "label": 2,
+    "link-name": 5,
+    "listitem": 18
+  },
+  "budgets": {
+    "button-name": 1,
+    "color-contrast": 3,
+    "link-name": 5,
+    "listitem": 18,
+    "select-name": 2
+  },
+  "login": {},
+  "withdrawal-form": {
+    "aria-required-children": 1,
+    "button-name": 8,
+    "color-contrast": 5,
+    "link-name": 5,
+    "listitem": 19,
+    "select-name": 1
+  }
+}
