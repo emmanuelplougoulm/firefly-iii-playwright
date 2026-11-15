@@ -19,9 +19,10 @@ export default defineConfig({
   },
   projects: [
     { name: 'setup', testMatch: /setup\/.*\.setup\.ts/ },
+    { name: 'api', testMatch: /api\/.*\.spec\.ts/, dependencies: ['setup'] },
     {
       name: 'chromium',
-      testIgnore: /setup\//,
+      testIgnore: /(setup|api)\//,
       use: { ...devices['Desktop Chrome'], storageState: STORAGE_STATE },
       dependencies: ['setup'],
     },

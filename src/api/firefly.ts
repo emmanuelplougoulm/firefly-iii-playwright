@@ -26,6 +26,17 @@ export type NewWithdrawal = {
   destinationName: string;
 };
 
+export type NewTransfer = {
+  description: string;
+  amount: string;
+  date: string; // YYYY-MM-DD
+  sourceId: string;
+  destinationId: string;
+};
+
+/** Raw split as the API takes it, for negative tests that send invalid data on purpose. */
+export type RawSplit = Record<string, string | undefined>;
+
 export class FireflyApi {
   constructor(private readonly request: APIRequestContext) {}
 
@@ -61,6 +72,36 @@ export class FireflyApi {
 
   async deleteAccount(id: string) {
     await this.send('delete', `/accounts/${id}`);
+  }
+
+  async createTransfer(t: NewTransfer) {
+    const { data } = await this.send<Resource<unknown>>('post', '/transactions', {
+      transactions: [
+        {
+          type: 'transfer',
+          description: t.description,
+          amount: t.amount,
+          date: t.date,
+          source_id: t.sourceId,
+          destination_id: t.destinationId,
+        },
+      ],
+    });
+    return { id: data.id };
+  }
+
+  /** Posts a transaction without asserting success: returns the status and the JSON body. */
+  async tryCreateTransaction(split: RawSplit) {
+    const res = await this.request.post('/api/v1/transactions', { data: { transactions: [split] } });
+    return { status: res.status(), body: (await res.json()) as { message?: string; errors?: Record<string, string[]> } };
+  }
+
+  /** Posts an asset account without asserting success. */
+  async tryCreateAssetAccount(name: string) {
+    const res = await this.request.post('/api/v1/accounts', {
+      data: { name, type: 'asset', account_role: 'defaultAsset' },
+    });
+    return { status: res.status(), body: (await res.json()) as { errors?: Record<string, string[]> } };
   }
 
   async createWithdrawal(t: NewWithdrawal) {
