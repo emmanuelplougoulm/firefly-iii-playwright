@@ -19,6 +19,8 @@ export type NewAssetAccount = {
 };
 
 export type NewWithdrawal = {
+  /** Defaults to true, like the web form. */
+  applyRules?: boolean;
   description: string;
   amount: string;
   date: string; // YYYY-MM-DD
@@ -36,6 +38,17 @@ export type NewTransfer = {
 
 /** Raw split as the API takes it, for negative tests that send invalid data on purpose. */
 export type RawSplit = Record<string, string | undefined>;
+
+export type Split = { description: string; category_name: string | null; amount: string };
+
+export type NewRule = {
+  title: string;
+  groupId: string;
+  /** e.g. { type: 'description_contains', value: 'rent' } */
+  triggers: { type: string; value: string }[];
+  /** e.g. { type: 'set_category', value: 'Housing' } */
+  actions: { type: string; value: string }[];
+};
 
 export class FireflyApi {
   constructor(private readonly request: APIRequestContext) {}
@@ -104,9 +117,51 @@ export class FireflyApi {
     return { status: res.status(), body: (await res.json()) as { errors?: Record<string, string[]> } };
   }
 
+  async createRuleGroup(title: string) {
+    const { data } = await this.send<Resource<unknown>>('post', '/rule-groups', { title });
+    return { id: data.id };
+  }
+
+  /** Deleting a group also deletes its rules. */
+  async deleteRuleGroup(id: string) {
+    await this.send('delete', `/rule-groups/${id}`);
+  }
+
+  /** A rule that runs when a transaction is stored ("store-journal"). */
+  async createRule(r: NewRule) {
+    const { data } = await this.send<Resource<unknown>>('post', '/rules', {
+      title: r.title,
+      rule_group_id: r.groupId,
+      trigger: 'store-journal',
+      active: true,
+      strict: true,
+      triggers: r.triggers,
+      actions: r.actions,
+    });
+    return { id: data.id };
+  }
+
+  /** Runs a rule on transactions that already exist in the given accounts and period. */
+  async fireRule(id: string, accountIds: string[], start: string, end: string) {
+    const query = new URLSearchParams({ start, end });
+    for (const a of accountIds) query.append('accounts[]', a);
+    await this.send('post', `/rules/${id}/trigger?${query}`, {}); // Firefly rejects a POST without Content-Type
+  }
+
+  async getTransaction(id: string) {
+    const { data } = await this.send<Resource<{ transactions: Split[] }>>('get', `/transactions/${id}`);
+    return data.attributes.transactions[0];
+  }
+
+  async deleteCategoryNamed(name: string) {
+    const { data } = await this.send<{ data: { id: string; attributes: { name: string } }[] }>('get', '/categories?limit=200');
+    for (const c of data.filter((c) => c.attributes.name === name)) await this.send('delete', `/categories/${c.id}`);
+  }
+
   async createWithdrawal(t: NewWithdrawal) {
-    const { data } = await this.send<Resource<{ transactions: { description: string }[] }>>('post', '/transactions', {
+    const { data } = await this.send<Resource<{ transactions: Split[] }>>('post', '/transactions', {
       error_if_duplicate_hash: false,
+      apply_rules: t.applyRules ?? true,
       transactions: [
         {
           type: 'withdrawal',
@@ -118,6 +173,6 @@ export class FireflyApi {
         },
       ],
     });
-    return { id: data.id };
+    return { id: data.id, ...data.attributes.transactions[0] };
   }
 }

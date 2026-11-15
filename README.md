@@ -8,7 +8,7 @@ The suite covers four layers:
 
 | Layer | What it checks | Where |
 |---|---|---|
-| API | Business rules, through the REST API only (no browser) | `tests/api` |
+| API | Business rules and automation rules, through the REST API only (no browser) | `tests/api` |
 | End to end | Data created through the API, then checked in the UI | `tests/e2e` |
 | Visual regression | Screenshots compared against Linux baselines generated in CI | `tests/visual` |
 | Accessibility | axe (WCAG 2.1 A/AA) with known violations tracked per page, and a keyboard-only journey | `tests/a11y` |

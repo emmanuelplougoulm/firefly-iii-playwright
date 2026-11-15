@@ -8,6 +8,12 @@ type Fixtures = {
   api: FireflyApi;
   /** Creates an asset account through the API and deletes it after the test. */
   assetAccount: (a?: Partial<NewAssetAccount>) => Promise<{ id: string; name: string }>;
+  /**
+   * A "description contains <keyword> -> category <category>" rule, in its own group.
+   * Keyword and category are unique per test: rules apply to every new transaction of the
+   * user, so a shared word like "Groceries" would also tag other tests' data.
+   */
+  categoryRule: () => Promise<{ id: string; keyword: string; category: string }>;
 };
 
 export const test = base.extend<Fixtures, { apiContext: APIRequestContext }>({
@@ -41,6 +47,28 @@ export const test = base.extend<Fixtures, { apiContext: APIRequestContext }>({
       return account;
     });
     for (const id of created) await api.deleteAccount(id);
+  },
+
+  categoryRule: async ({ api }, use) => {
+    const groups: string[] = [];
+    const categories: string[] = [];
+    await use(async () => {
+      const tag = randomUUID().slice(0, 8);
+      const keyword = `grocery-${tag}`;
+      const category = `Food ${tag}`;
+      const group = await api.createRuleGroup(`Rules ${tag}`);
+      groups.push(group.id);
+      categories.push(category);
+      const rule = await api.createRule({
+        title: `Tag groceries ${tag}`,
+        groupId: group.id,
+        triggers: [{ type: 'description_contains', value: keyword }],
+        actions: [{ type: 'set_category', value: category }],
+      });
+      return { id: rule.id, keyword, category };
+    });
+    for (const id of groups) await api.deleteRuleGroup(id);
+    for (const name of categories) await api.deleteCategoryNamed(name);
   },
 });
 
