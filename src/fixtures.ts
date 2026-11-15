@@ -29,6 +29,8 @@ export const test = base.extend<Fixtures, { apiContext: APIRequestContext }>({
   assetAccount: async ({ api }, use) => {
     const created: string[] = [];
     await use(async (a = {}) => {
+      // A fixed name (visual tests) may be left over by an interrupted run: remove it first.
+      if (a.name) for (const stale of await api.findAssetAccounts(a.name)) await api.deleteAccount(stale.id);
       const account = await api.createAssetAccount({
         // Unique names keep parallel tests independent.
         name: a.name ?? `Checking ${randomUUID().slice(0, 8)}`,

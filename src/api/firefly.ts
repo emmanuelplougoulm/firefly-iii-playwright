@@ -51,6 +51,14 @@ export class FireflyApi {
     return { id: data.id, ...data.attributes };
   }
 
+  async findAssetAccounts(name: string) {
+    const { data } = await this.send<{ data: { id: string; attributes: Account }[] }>(
+      'get',
+      `/search/accounts?field=name&type=asset&query=${encodeURIComponent(name)}`,
+    );
+    return data.filter((a) => a.attributes.name === name).map((a) => ({ id: a.id, ...a.attributes }));
+  }
+
   async deleteAccount(id: string) {
     await this.send('delete', `/accounts/${id}`);
   }
