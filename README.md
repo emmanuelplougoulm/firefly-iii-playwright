@@ -11,7 +11,7 @@ The suite covers four layers:
 | API | Business rules, through the REST API only (no browser) | `tests/api` |
 | End to end | Data created through the API, then checked in the UI | `tests/e2e` |
 | Visual regression | Screenshots compared against Linux baselines generated in CI | `tests/visual` |
-| Accessibility | axe (WCAG 2.1 A/AA), with known violations tracked per page | `tests/a11y` |
+| Accessibility | axe (WCAG 2.1 A/AA) with known violations tracked per page, and a keyboard-only journey | `tests/a11y` |
 
 ## Architecture
 
@@ -66,7 +66,8 @@ Findings on Firefly III 6.7.9, reproducible with this suite:
 1. **The month summary on the account page changes between two identical visits.** On the first view of a period it shows 2 rows (Transactions, Spent); from the second view on, it shows 5 (Earned and transfers too). The server cache seems to be involved. The visual test loads the page twice before capturing.
 2. **That summary box overflows at 1280 px.** Amounts are cut off on the right edge (visible in the baseline screenshot).
 3. **Accessibility.** The login page has no axe violation. The new withdrawal form has the most: 8 buttons without an accessible name, an unlabelled select, insufficient colour contrast and an incomplete ARIA structure. The sidebar alone adds 5 links without a name and 18 misplaced list items to every page.
-4. **No overdraft guard.** A withdrawal larger than the balance is accepted and the balance goes negative. This is a design choice (Firefly III records what happened), pinned by a test so a change would be noticed.
+4. **The form works with the keyboard alone, with gaps for screen readers.** A withdrawal can be entered and submitted without a mouse: the description field has autofocus and the account autocomplete answers to the arrow keys. But every autocomplete field is a `combobox` with an empty accessible name, so a screen reader announces it without saying what it is for.
+5. **No overdraft guard.** A withdrawal larger than the balance is accepted and the balance goes negative. This is a design choice (Firefly III records what happened), pinned by a test so a change would be noticed.
 
 ## Project layout
 
