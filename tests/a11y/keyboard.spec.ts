@@ -19,19 +19,21 @@ test('a withdrawal can be entered and submitted with the keyboard only', async (
   const account = await assetAccount({ openingBalance: '100' });
 
   // A fresh user gets a guided tour that holds the focus. It must be closable from the keyboard.
-  await page.goto('/transactions/create/withdrawal');
+  // The form is built by Alpine.js after load; typing earlier is lost when it initialises.
+  await page.goto('/transactions/create/withdrawal', { waitUntil: 'networkidle' });
   const closeTour = page.getByRole('button', { name: 'Close Tour' });
   if (await closeTour.isVisible()) {
     await tabTo(page, closeTour, 3);
     await page.keyboard.press('Enter');
     await expect(closeTour).toBeHidden();
-    await page.reload();
+    await page.reload({ waitUntil: 'networkidle' });
   }
 
   // The first field has autofocus: a keyboard user starts in the form, not in the 27 menu stops.
   await expect(page.locator('#description_0')).toBeFocused();
 
   await page.keyboard.type('Paid with the keyboard');
+  await expect(page.locator('#description_0')).toHaveValue('Paid with the keyboard');
   await page.keyboard.press('Escape'); // close the description suggestions, if any
   await tabTo(page, page.locator('#source_0'), 3);
   await page.keyboard.type(account.name);
