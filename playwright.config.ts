@@ -38,10 +38,24 @@ export default defineConfig({
     { name: 'setup', testMatch: /setup\/.*\.setup\.ts/ },
     // Business rules and authorization through the REST API: no browser.
     { name: 'api', testMatch: /api\/.*\.spec\.ts/, dependencies: ['setup'] },
+    // Every browser test. Visual baselines and axe counts are recorded on Chromium only.
     {
       name: 'chromium',
       testMatch: /(e2e|visual|a11y)\/.*\.spec\.ts/,
       use: { ...devices['Desktop Chrome'], ...signedIn },
+      dependencies: ['setup'],
+    },
+    // User journeys on the two other engines.
+    {
+      name: 'firefox',
+      testMatch: /e2e\/.*\.spec\.ts/,
+      use: { ...devices['Desktop Firefox'], ...signedIn },
+      dependencies: ['setup'],
+    },
+    {
+      name: 'webkit',
+      testMatch: /e2e\/.*\.spec\.ts/,
+      use: { ...devices['Desktop Safari'], ...signedIn },
       dependencies: ['setup'],
     },
   ],

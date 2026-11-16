@@ -3,7 +3,7 @@ import { test, expect } from '../../src/fixtures';
 // Data goes in through the API, the check happens in the UI.
 // The account page titles its transaction list with the balance: "Transactions (€1,250.50)".
 
-test('an account created through the API shows its opening balance in the UI', async ({ page, assetAccount }) => {
+test('an account created through the API shows its opening balance in the UI', { tag: '@smoke' }, async ({ page, assetAccount }) => {
   const account = await assetAccount({ openingBalance: '1250.50' });
 
   await page.goto(`/accounts/show/${account.id}`);
