@@ -158,6 +158,19 @@ export class FireflyApi {
     for (const c of data.filter((c) => c.attributes.name === name)) await this.send('delete', `/categories/${c.id}`);
   }
 
+  /** Admin only. Deleting a user also deletes all of their data. */
+  async deleteUserByEmail(email: string) {
+    const { data } = await this.send<{ data: { id: string; attributes: { email: string } }[] }>('get', '/users?limit=1000');
+    for (const u of data.filter((u) => u.attributes.email === email)) await this.send('delete', `/users/${u.id}`);
+  }
+
+  /** Sets a user preference, creating it if the user does not have it yet. */
+  async setPreference(name: string, data: unknown) {
+    const res = await this.request.put(`/api/v1/preferences/${name}`, { data: { data } });
+    if (res.status() === 404) await this.send('post', '/preferences', { name, data });
+    else expect(res, `PUT /preferences/${name}: ${await res.text()}`).toBeOK();
+  }
+
   async createWithdrawal(t: NewWithdrawal) {
     const { data } = await this.send<Resource<{ transactions: Split[] }>>('post', '/transactions', {
       error_if_duplicate_hash: false,

@@ -1,4 +1,5 @@
-import { test as base, request, type APIRequestContext } from '@playwright/test';
+import { test as base, request, type APIRequestContext, type Page } from '@playwright/test';
+import { newPassword, submitAuthForm } from './auth';
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { USERS } from '../playwright.config';
@@ -18,6 +19,8 @@ type Fixtures = {
   api: FireflyApi;
   /** Raw API context signed in as a second, unrelated user, for authorization checks. */
   otherUserRequest: APIRequestContext;
+  /** A user registered for this test only, signed in on its own page; deleted afterwards. */
+  newUser: { page: Page; email: string };
   /** Creates an asset account through the API and deletes it after the test. */
   assetAccount: (a?: Partial<NewAssetAccount>) => Promise<{ id: string; name: string }>;
   /**
@@ -39,6 +42,16 @@ export const test = base.extend<Fixtures, { apiContext: APIRequestContext }>({
   ],
 
   api: async ({ apiContext }, use) => use(new FireflyApi(apiContext)),
+
+  newUser: async ({ browser, api }, use) => {
+    const email = `new-${randomUUID().slice(0, 8)}@example.test`;
+    const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await context.newPage();
+    await submitAuthForm(page, 'register', email, newPassword());
+    await use({ page, email });
+    await context.close();
+    await api.deleteUserByEmail(email); // as the admin; also removes the user's data
+  },
 
   otherUserRequest: async ({ baseURL }, use) => {
     const ctx = await apiContextFor('other', baseURL);

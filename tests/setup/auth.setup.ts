@@ -1,8 +1,10 @@
 import { test as setup, expect, type Browser, type Page } from '@playwright/test';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { USERS } from '../../playwright.config';
+import { FireflyApi } from '../../src/api/firefly';
 import { newPassword, submitAuthForm } from '../../src/auth';
 import { apiContextFor } from '../../src/fixtures';
+import { WithdrawalForm } from '../../src/pages/withdrawal-form';
 
 // The test accounts live only in the throwaway Docker instance.
 // The first run registers them (the first user of a fresh Firefly III becomes admin,
@@ -53,4 +55,12 @@ setup('sign in the owner and a second, unrelated user', async ({ browser, baseUR
 
   await signInWithNewContext(browser, USERS.other);
 
+  // The guided tour is per user and server-side: if tests opened the form while it is
+  // still unseen, whichever closes it first would change what the others see.
+  // (tests/a11y/guided-tour.spec.ts tests the tour with a brand-new user of its own.)
+  for (const user of ['owner', 'other'] as const) {
+    const ctx = await apiContextFor(user, baseURL);
+    await new FireflyApi(ctx).setPreference(WithdrawalForm.TOUR_SEEN_PREFERENCE, true);
+    await ctx.dispose();
+  }
 });
