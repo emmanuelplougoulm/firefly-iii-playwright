@@ -1,7 +1,24 @@
 import { defineConfig, devices } from '@playwright/test';
 
-export const STORAGE_STATE = '.auth/user.json';
-export const API_TOKEN = '.auth/api-token.json';
+/** Test users, created by tests/setup on a fresh instance. Files live in .auth/ (gitignored). */
+export const USERS = {
+  /** First user of the instance, so the admin. Owns all the data the tests create. */
+  owner: {
+    email: 'qa@example.test',
+    credentials: '.auth/owner-credentials.json',
+    storageState: '.auth/owner.json',
+    token: '.auth/owner-token.json',
+  },
+  /** A second, regular user: used to check that one user cannot reach another's data. */
+  other: {
+    email: 'other@example.test',
+    credentials: '.auth/other-credentials.json',
+    storageState: '.auth/other.json',
+    token: '.auth/other-token.json',
+  },
+} as const;
+
+const signedIn = { storageState: USERS.owner.storageState };
 
 export default defineConfig({
   testDir: 'tests',
@@ -10,7 +27,8 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   // Screenshots differ between macOS and Linux: baselines come from CI only.
   ignoreSnapshots: !process.env.CI,
-  reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : [['list'], ['html', { open: 'never' }]],
+  // In CI each job writes a blob report; the merge job turns them into one HTML report.
+  reporter: process.env.CI ? [['github'], ['list'], ['blob']] : [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL: process.env.BASE_URL ?? 'http://localhost:8080',
     trace: 'retain-on-failure',
@@ -19,11 +37,26 @@ export default defineConfig({
   },
   projects: [
     { name: 'setup', testMatch: /setup\/.*\.setup\.ts/ },
+    // Business rules and authorization through the REST API: no browser.
     { name: 'api', testMatch: /api\/.*\.spec\.ts/, dependencies: ['setup'] },
+    // Every browser test. Visual baselines and axe counts are recorded on Chromium only.
     {
       name: 'chromium',
-      testIgnore: /(setup|api)\//,
-      use: { ...devices['Desktop Chrome'], storageState: STORAGE_STATE },
+      testMatch: /(e2e|visual|a11y)\/.*\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'], ...signedIn },
+      dependencies: ['setup'],
+    },
+    // User journeys on the two other engines.
+    {
+      name: 'firefox',
+      testMatch: /e2e\/.*\.spec\.ts/,
+      use: { ...devices['Desktop Firefox'], ...signedIn },
+      dependencies: ['setup'],
+    },
+    {
+      name: 'webkit',
+      testMatch: /e2e\/.*\.spec\.ts/,
+      use: { ...devices['Desktop Safari'], ...signedIn },
       dependencies: ['setup'],
     },
   ],

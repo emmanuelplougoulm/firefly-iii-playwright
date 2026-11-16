@@ -6,7 +6,11 @@
     "app:up": "docker compose -f docker/compose.yml up -d --wait",
     "app:down": "docker compose -f docker/compose.yml down -v",
     "test": "playwright test",
-    "report": "playwright show-report"
+    "report": "playwright show-report",
+    "test:api": "playwright test --project=api",
+    "test:smoke": "playwright test --grep @smoke --project=api --project=chromium",
+    "test:security": "playwright test --grep @security",
+    "typecheck": "tsc"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",
