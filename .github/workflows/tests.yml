@@ -11,43 +11,74 @@ on:
         type: boolean
         default: false
 
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  playwright:
+  # Fast gate: type check and the @smoke tests on Chromium. The full matrix only starts if it passes.
+  smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
-
       - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
-
       - run: npm ci
-
       - name: Type check
         run: npx tsc
-
       - name: Start Firefly III
         run: npm run app:up
-
       - name: Install browsers
         run: npx playwright install --with-deps chromium
+      - name: Smoke tests
+        run: npx playwright test --grep @smoke --project=api --project=chromium
+        env:
+          PLAYWRIGHT_BLOB_OUTPUT_FILE: blob-report/smoke.zip
 
-      # Missing baselines are created on Linux and committed; existing ones are compared.
+  # One job per Playwright project, each against its own fresh Firefly III.
+  test:
+    needs: smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write # the chromium job commits new visual baselines
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [api, chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Start Firefly III
+        run: npm run app:up
+      # The setup project signs in through Chromium, so every job needs it.
+      - name: Install browsers
+        run: npx playwright install --with-deps chromium ${{ contains(fromJSON('["firefox","webkit"]'), matrix.project) && matrix.project || '' }}
+
+      # Visual tests run in the chromium job: missing baselines are created on Linux
+      # and committed; existing ones are compared.
       - name: Playwright tests
         run: |
           if [ "${{ inputs.update_snapshots }}" = "true" ]; then
-            npx playwright test --update-snapshots=all
+            npx playwright test --project=${{ matrix.project }} --update-snapshots=all
           else
-            npx playwright test --update-snapshots=missing
+            npx playwright test --project=${{ matrix.project }} --update-snapshots=missing
           fi
+        env:
+          PLAYWRIGHT_BLOB_OUTPUT_FILE: blob-report/${{ matrix.project }}.zip
 
       - name: Commit new visual baselines
-        if: github.event_name != 'pull_request'
+        if: matrix.project == 'chromium' && github.event_name != 'pull_request'
         run: |
           if [ -n "$(git status --porcelain tests)" ]; then
             git config user.name "github-actions[bot]"
@@ -57,14 +88,43 @@ jobs:
             git push
           fi
 
-      - name: Upload report
-        if: always()
+      - name: Upload blob report
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7
         with:
-          name: playwright-report
-          path: playwright-report
-          retention-days: 14
+          name: blob-report-${{ matrix.project }}
+          path: blob-report
+          retention-days: 3
 
       - name: Firefly III logs on failure
         if: failure()
         run: docker compose -f docker/compose.yml logs app --tail 200
+
+  # One HTML report for the whole run, whatever the jobs' outcome.
+  report:
+    needs: test
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: blob-report-*
+          path: all-blob-reports
+          merge-multiple: true
+      - name: Merge reports
+        run: npx playwright merge-reports --reporter html,json ./all-blob-reports
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_NAME: results.json
+      - name: Summary
+        run: node scripts/summary.mjs results.json >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: playwright-report
+          retention-days: 14

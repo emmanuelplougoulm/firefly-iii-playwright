@@ -27,7 +27,8 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   // Screenshots differ between macOS and Linux: baselines come from CI only.
   ignoreSnapshots: !process.env.CI,
-  reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : [['list'], ['html', { open: 'never' }]],
+  // In CI each job writes a blob report; the merge job turns them into one HTML report.
+  reporter: process.env.CI ? [['github'], ['list'], ['blob']] : [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL: process.env.BASE_URL ?? 'http://localhost:8080',
     trace: 'retain-on-failure',
