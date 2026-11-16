@@ -1,11 +1,23 @@
 import { test as base, request, type APIRequestContext } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { API_TOKEN } from '../playwright.config';
+import { USERS } from '../playwright.config';
 import { FireflyApi, type NewAssetAccount } from './api/firefly';
 
+/** An API context authenticated as one of the test users. */
+export async function apiContextFor(user: keyof typeof USERS, baseURL: string | undefined) {
+  const { accessToken } = JSON.parse(readFileSync(USERS[user].token, 'utf8')) as { accessToken: string };
+  return request.newContext({
+    baseURL,
+    extraHTTPHeaders: { Authorization: `Bearer ${accessToken}`, Accept: 'application/vnd.api+json' },
+  });
+}
+
 type Fixtures = {
+  /** API client signed in as the owner, who owns all the test data. */
   api: FireflyApi;
+  /** Raw API context signed in as a second, unrelated user, for authorization checks. */
+  otherUserRequest: APIRequestContext;
   /** Creates an asset account through the API and deletes it after the test. */
   assetAccount: (a?: Partial<NewAssetAccount>) => Promise<{ id: string; name: string }>;
   /**
@@ -19,11 +31,7 @@ type Fixtures = {
 export const test = base.extend<Fixtures, { apiContext: APIRequestContext }>({
   apiContext: [
     async ({}, use, workerInfo) => {
-      const { accessToken } = JSON.parse(readFileSync(API_TOKEN, 'utf8')) as { accessToken: string };
-      const ctx = await request.newContext({
-        baseURL: workerInfo.project.use.baseURL,
-        extraHTTPHeaders: { Authorization: `Bearer ${accessToken}`, Accept: 'application/vnd.api+json' },
-      });
+      const ctx = await apiContextFor('owner', workerInfo.project.use.baseURL);
       await use(ctx);
       await ctx.dispose();
     },
@@ -31,6 +39,12 @@ export const test = base.extend<Fixtures, { apiContext: APIRequestContext }>({
   ],
 
   api: async ({ apiContext }, use) => use(new FireflyApi(apiContext)),
+
+  otherUserRequest: async ({ baseURL }, use) => {
+    const ctx = await apiContextFor('other', baseURL);
+    await use(ctx);
+    await ctx.dispose();
+  },
 
   assetAccount: async ({ api }, use) => {
     const created: string[] = [];

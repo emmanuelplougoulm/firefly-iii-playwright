@@ -1,7 +1,24 @@
 import { defineConfig, devices } from '@playwright/test';
 
-export const STORAGE_STATE = '.auth/user.json';
-export const API_TOKEN = '.auth/api-token.json';
+/** Test users, created by tests/setup on a fresh instance. Files live in .auth/ (gitignored). */
+export const USERS = {
+  /** First user of the instance, so the admin. Owns all the data the tests create. */
+  owner: {
+    email: 'qa@example.test',
+    credentials: '.auth/owner-credentials.json',
+    storageState: '.auth/owner.json',
+    token: '.auth/owner-token.json',
+  },
+  /** A second, regular user: used to check that one user cannot reach another's data. */
+  other: {
+    email: 'other@example.test',
+    credentials: '.auth/other-credentials.json',
+    storageState: '.auth/other.json',
+    token: '.auth/other-token.json',
+  },
+} as const;
+
+const signedIn = { storageState: USERS.owner.storageState };
 
 export default defineConfig({
   testDir: 'tests',
@@ -19,11 +36,12 @@ export default defineConfig({
   },
   projects: [
     { name: 'setup', testMatch: /setup\/.*\.setup\.ts/ },
+    // Business rules and authorization through the REST API: no browser.
     { name: 'api', testMatch: /api\/.*\.spec\.ts/, dependencies: ['setup'] },
     {
       name: 'chromium',
-      testIgnore: /(setup|api)\//,
-      use: { ...devices['Desktop Chrome'], storageState: STORAGE_STATE },
+      testMatch: /(e2e|visual|a11y)\/.*\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'], ...signedIn },
       dependencies: ['setup'],
     },
   ],
